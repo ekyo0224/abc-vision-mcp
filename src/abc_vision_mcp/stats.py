@@ -38,6 +38,15 @@ DEFAULT_CSV = os.path.join(
 # denominator rather than silently counted as refusals.
 NO_REPORT = "no_report_produced"
 
+# The outcome that means a level was actually published. Named because
+# ``human_approval_dropoff`` needs to say what long uploads did *not* do, and a
+# literal there would drift from the table above the first time one is renamed.
+GIVEN_LEVEL = "given_level"
+
+# "Five minutes or longer" is a length band this project has said things about,
+# so the threshold lives here rather than being retyped at each use.
+LONG_UPLOAD_SECONDS = 300
+
 OUTCOME_LABELS = {
     "given_level": "a skill level was published",
     "tracked_seconds_under_45": "declined: too little of the player could be tracked",
@@ -130,12 +139,19 @@ def human_approval_dropoff(path: str | None = None) -> dict[str, Any]:
 
     The competition rules count ``request for human approval`` as a qualifying
     action in a perception-decision-action loop. This is that branch measured
-    in production -- and it is the branch that fails most often, which is worth
-    more to a technical report than a branch that always succeeds.
+    in production, which is worth more to a technical report than a branch that
+    always succeeds.
 
     ``PICK_ABANDONED`` means: the analysis finished, the system could not
     identify the player on its own, it asked the player to tap themselves, and
     the player never returned before the hold expired.
+
+    The ``reading`` this returns is composed from the figures beside it rather
+    than written out, because the sentence that used to sit here was wrong in a
+    way that only a hard-coded narrative can be: it claimed five minutes was
+    "the length that most often yields a level" while the same export showed no
+    upload that long had ever produced one. A sentence that cannot drift from
+    its own numbers cannot fail that way twice.
     """
     rows = load_rows(path)
     no_report = [r for r in rows if r.get("outcome") == NO_REPORT]
@@ -153,7 +169,18 @@ def human_approval_dropoff(path: str | None = None) -> dict[str, Any]:
     # is 291. A technical report that quotes the same figure two ways is worse
     # than one that quotes it once.
     median = statistics.median(lengths) if lengths else None
-    five_min_plus = sum(1 for s in lengths if s >= 300)
+    five_min_plus = sum(1 for s in lengths if s >= LONG_UPLOAD_SECONDS)
+
+    # What uploads of that length actually did, across the whole export. This
+    # is the check that the old reading failed: it is not enough to say half of
+    # the abandoned jobs were long, without saying what long ones achieve.
+    long_uploads = [
+        r for r in rows
+        if (r.get("video_sec") or "").strip()
+        and float(r["video_sec"]) >= LONG_UPLOAD_SECONDS
+    ]
+    long_reported = [r for r in long_uploads if r.get("outcome") != NO_REPORT]
+    long_with_level = [r for r in long_reported if r.get("outcome") == GIVEN_LEVEL]
 
     return {
         "jobs_without_a_report": len(no_report),
@@ -163,11 +190,26 @@ def human_approval_dropoff(path: str | None = None) -> dict[str, Any]:
         "video_seconds_median": median,
         "at_least_five_minutes": five_min_plus,
         "at_least_five_minutes_pct": _pct(five_min_plus, len(lengths)) if lengths else 0.0,
+        # Reported separately from the abandoned cohort above, because these are
+        # two different populations and the whole point is not to merge them.
+        "long_uploads_in_export": len(long_uploads),
+        "long_uploads_that_produced_a_report": len(long_reported),
+        "long_uploads_that_yielded_a_level": len(long_with_level),
         "reading": (
-            "These are not bad uploads. Half of them are five minutes or "
-            "longer -- the length that most often yields a level. The loop "
-            "asked for human confirmation and the request did not reach the "
-            "person in time. The failure is in the hand-off, not in the vision."
+            "The loop reached these %d and asked the player to identify "
+            "themselves -- which is what it does when it cannot resolve "
+            "identity on its own. Nobody answered, so the job produced no "
+            "report and no level. We cannot say what would have happened if "
+            "someone had. On length, separately: %d uploads in this export ran "
+            "five minutes or longer, %d of those produced a report at all, and "
+            "%d of those yielded a level -- a small denominator, so we are not "
+            "claiming a rule from it. We also cannot say why each request went "
+            "unanswered: we did not instrument that. One gap we can name is "
+            "that throughout this data window none of the app's notification "
+            "types covered \"ready for you to pick\". Whether that is what "
+            "cost us the %d, we do not know."
+            % (len(abandoned), len(long_uploads), len(long_reported),
+               len(long_with_level), len(abandoned))
         ),
     }
 

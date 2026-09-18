@@ -1,9 +1,13 @@
 # Corrections
 
 Things this project stated and then found to be wrong. They are kept because a
-submission that only records its successes is not evidence of anything, and
-because in both cases the error was caught by a tool built for the purpose —
-which is the actual claim being made here.
+submission that only records its successes is not evidence of anything.
+
+The first three were caught by tooling built for the purpose. The fourth was
+not: it was caught by people reading the claim against the data, after it had
+already shipped. That distinction is left visible rather than smoothed over,
+because "our tools catch our mistakes" is a weaker statement than it looks if
+the worst one got past them.
 
 ---
 
@@ -87,3 +91,79 @@ dominates the whole job is 93% MediaPipe and YOLO rather than OpenCV.
 
 The false 0% had already been reported to the working group before it was
 found. It was corrected there too.
+
+---
+
+## 4. The failure-cases section contained the project's worst claim
+
+**Claimed:** of the uploads whose identity request went unanswered, "half of
+them are five minutes or longer — *the length that most often yields a level*".
+**True:** in the shipped export, five minutes or longer is the length band that
+has never yielded one.
+
+| Video length | Produced a report | Yielded a level |
+|---|---:|---:|
+| 60–120 s | 291 | 261 |
+| 120–180 s | 75 | 62 |
+| 180–300 s | 10 | 3 |
+| **300 s and over** | **10** | **0** |
+
+The 390 jobs that did yield a level ran a median of 85.1 s and a maximum of
+194.4 s. Not one reached five minutes.
+
+This is the worst error in the project's history for three reasons. It was a
+statement about our own failure handling, in the section whose entire purpose
+is not overstating. The data that refutes it is
+`data/deidentified/production_outcomes_deidentified_20260918.csv`, shipped in
+this repository. And `human_approval_dropoff` — which the submission's own
+testing instructions tell a judge to call — returned the sentence directly from
+the server.
+
+A second claim in the same passage was withdrawn at the same time: "the
+perception worked; the hand-off to a human did not." That was never measured.
+Those 110 jobs produced no report, so the identity work on them was never
+scored; the loop asked for help precisely because it could not resolve identity
+alone. Asserting the vision succeeded reversed an "I am not sure" into an "I am
+sure", which is the exact move this project exists to refuse.
+
+### How it was found, and what that says
+
+Not by a tool. By reviewers reading the claim against the export.
+
+The correction then had to be made four times, because the first three attempts
+each replaced the overstatement with a new one:
+
+| Attempt | What was still wrong |
+|---|---|
+| 1 | "no upload has ever yielded a level" — true, but stated without the denominator of ten |
+| 1 | "the two failures compound each other" — an interaction nobody had tested |
+| 2 | kept "the perception worked" |
+| 3 | "what we can say is *why* the request never arrived" — causation, again unmeasured |
+
+Each was caught by a different reader. The pattern is more informative than any
+single sentence: the impulse was to extract one more conclusion than the data
+carried, and it survived three deliberate attempts to remove it.
+
+The number in the final wording was dropped for the same reason. "The app had
+four notification types" turned out to depend on whether a two-variant
+`finished` notification counts as one type or two — 4 or 5, depending on how
+you count. The substantive point held either way (none of them covered "ready
+for you to pick"), so the count came out and the claim stayed.
+
+### What changed structurally
+
+The sentence was a fixed string sitting beside numbers it never consulted, so
+it could not fail any other way. It is now composed from those numbers, three
+of which are newly reported so a reader can check the claim from the same tool
+call:
+
+```
+long_uploads_in_export                68
+long_uploads_that_produced_a_report   10
+long_uploads_that_yielded_a_level      0
+```
+
+Two regression tests guard it: one asserts every quantity in the prose appears
+in the payload, the other asserts the four withdrawn phrasings never return.
+The claim appeared in four places — the tool, the Devpost description, the
+technical report, and a test's own docstring — and all four were corrected.

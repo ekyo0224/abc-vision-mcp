@@ -127,16 +127,67 @@ def test_human_approval_dropoff_matches_hand_verified_counts():
 
 
 def test_abandoned_uploads_are_not_short_ones():
-    """The argument the report makes rests on this.
+    """These are not 30-second clips.
 
-    If these were 30-second clips the drop-off would just be bad uploads. They
-    are not: the median is a shade under five minutes and half clear it, which
-    is the length band that most often produces a level.
+    If they were, the drop-off would just be bad uploads. The median is a shade
+    under five minutes and half clear it.
+
+    This docstring used to add "which is the length band that most often
+    produces a level". That was false -- see
+    ``test_long_uploads_did_not_in_fact_yield_levels`` below -- and it is
+    recorded in docs/CORRECTIONS.md.
     """
     out = stats.human_approval_dropoff()
     assert out["video_seconds_median"] == pytest.approx(290.9, abs=0.1)
     assert out["at_least_five_minutes"] == 54
     assert out["at_least_five_minutes_pct"] == pytest.approx(49.1, abs=0.1)
+
+
+def test_long_uploads_did_not_in_fact_yield_levels():
+    """The measurement that contradicted what this project used to claim.
+
+    Long uploads were described as the length band that most often yields a
+    level. In this export they are the band that never does -- on a denominator
+    of ten, which is why the reading says so rather than calling it a rule.
+    """
+    out = stats.human_approval_dropoff()
+    assert out["long_uploads_in_export"] == 68
+    assert out["long_uploads_that_produced_a_report"] == 10
+    assert out["long_uploads_that_yielded_a_level"] == 0
+
+
+def test_reading_quotes_the_figures_beside_it():
+    """The reading must be composed from the data, not written alongside it.
+
+    The claim that failed was possible only because the sentence was a fixed
+    string sitting next to numbers it never consulted. Every quantity it states
+    must appear in the same payload.
+    """
+    out = stats.human_approval_dropoff()
+    reading = out["reading"]
+    for key in ("human_approval_requested_then_abandoned",
+                "long_uploads_in_export",
+                "long_uploads_that_produced_a_report",
+                "long_uploads_that_yielded_a_level"):
+        assert str(out[key]) in reading, "%s is not quoted in the reading" % key
+
+
+def test_reading_makes_no_claim_the_data_does_not_support():
+    """Guard against the specific sentences that were withdrawn.
+
+    Two claims were removed: that five minutes is the length that most often
+    yields a level (contradicted by the export), and that the perception
+    succeeded on these jobs (never measured -- they produced no report, so the
+    identity work on them was never scored).
+    """
+    reading = stats.human_approval_dropoff()["reading"].lower()
+    for withdrawn in ("most often yields a level",
+                      "not in the vision",
+                      "the perception worked",
+                      "the vision worked"):
+        assert withdrawn not in reading, "withdrawn claim is back: %r" % withdrawn
+    assert "we cannot say" in reading
+    assert "we do not know" in reading
 
 
 def test_median_is_the_true_median_not_the_upper_middle():
