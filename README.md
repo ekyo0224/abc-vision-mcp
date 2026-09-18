@@ -101,10 +101,9 @@ This repository is built to be handed to competition judges, so it is
 structured to make leaking hard rather than to rely on care:
 
 - `.gitignore` is an **allowlist** — everything is ignored, and tracked paths
-  are named explicitly. The engine repository used a blocklist, missed five
-  directories, and ended up tracking 1,931 data files including customer names
-  in filenames. That repository can never be pushed anywhere. This one starts
-  from the opposite default.
+  are named explicitly. A sibling repository used a blocklist, missed several
+  directories, and ended up tracking customer data it should never have held.
+  This one starts from the opposite default.
 - The trace redacts by key name, so a field added later called `subject_name`
   is redacted the day it appears. Paths and identifiers become truncated
   SHA-256 handles: stable enough to show two calls hit the same video, useless

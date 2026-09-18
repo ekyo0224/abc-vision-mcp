@@ -1,13 +1,13 @@
 # ─────────────────────────────────────────────────────────────
-# 白名單策略：先全部擋掉，再逐項放行。
+# Allowlist, not blocklist: ignore everything, then permit by name.
 #
-# 為什麼不用黑名單：主體 repo D:\BADMINTON_COACH_APP_V1 就是用黑名單，
-# 結果漏列 data/results、data/full_results、data/scans、data/courts、
-# data/subjects.json，導致 1,931 個 data/ 檔案（含 428 份客人分析結果、
-# 208 個選手身分、真實姓名檔名、data/recruit/admin_key）全部進了版控。
-# 那個 repo 現在永遠不能推上任何遠端。
+# The inversion is deliberate. A sibling project used a blocklist, missed
+# several data directories, and had customer analysis output in its history
+# before anyone noticed. A blocklist fails silently and fails open -- the first
+# file nobody thought of is already committed -- and a repository's history
+# cannot be un-shared once it has been.
 #
-# 這個 repo 不會重蹈覆轍。要進版控的東西必須明確寫在下面的放行清單裡。
+# So nothing here enters version control unless it is named in section 2.
 # ─────────────────────────────────────────────────────────────
 
 # 1) 全部擋掉

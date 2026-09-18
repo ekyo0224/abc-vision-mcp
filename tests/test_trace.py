@@ -11,9 +11,8 @@ against. They were, and that was the wrong call: pushing this file would have
 put those names on GitHub, which is the exact outcome the redaction it tests is
 meant to prevent.
 
-The main engine repository already learned this the hard way -- 1,931 tracked
-data files, customer names in filenames, a live admin key in version control --
-so here the property is checked rather than trusted.
+A sibling repository already learned this the hard way, by tracking data it
+should never have held -- so here the property is checked rather than trusted.
 """
 
 import json

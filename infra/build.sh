@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 # Stage the engine slice and build the container image.
 #
-# The slice is an allowlist, not a copy-and-prune. The engine checkout contains
-# 1,931 tracked data files including customer video analyses, player identity
-# records and a live admin key; a build that copied a directory and then
-# excluded the bad parts would leak the first time someone added a file. So
-# every path that enters the image is named below, and anything not named does
-# not travel.
+# The slice is an allowlist, not a copy-and-prune. The engine checkout holds
+# production data and credentials alongside its source; a build that copied a
+# directory and then excluded the bad parts would leak the first time someone
+# added a file. So every path that enters the image is named below, and
+# anything not named does not travel.
 #
 # Usage:
 #   bash infra/build.sh                       # build only
