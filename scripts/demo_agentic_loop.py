@@ -34,53 +34,25 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
 from abc_vision_mcp import identity  # noqa: E402
 from abc_vision_mcp.trace import DecisionTrace  # noqa: E402
 
-FPS = 30.0
-REGIONS = ["r%02dc%d" % (r, c) for r in range(10) for c in range(3)]
-
-# What the caller demands of a plan before accepting it. Written here as a
-# constant because the loop below branches on it, and a judge should be able to
-# see the number the decision was made against.
-COVERAGE_TARGET = 3
-MAX_ATTEMPTS = 8  # mirrors core/analysis.py MAX_ANCHOR_ATTEMPTS
-
-
-def _sig(hue: float) -> dict[str, list]:
-    """One flat appearance signature: [hue, saturation, value] per region."""
-    return {k: [hue, 200.0, 180.0] for k in REGIONS}
-
-
-def _box(x: float) -> tuple:
-    return (x, 400.0, x + 60.0, 560.0, 0.9)
+from abc_vision_mcp.demo_fixture import (  # noqa: E402
+    COVERAGE_TARGET,
+    FPS,
+    MAX_ATTEMPTS,
+    REGIONS,
+    evidence,
+)
 
 
 def _evidence():
-    """Three rallies; the subject sits one of them out.
+    """Unpack the shared fixture into what main() reads.
 
-    This is the ordinary case, not a contrived one: a player rotates off court
-    and the footage keeps rolling. No assignment can cover a rally the subject
-    was not in, so the loop will try every anchor available, fail to reach the
-    target, and have to decide what to do about that -- which is the decision
-    worth showing.
-
-    Blocks are separated by more than the engine's link window, so each is a
-    distinct candidate anchor and ruling one out is a real choice.
+    The fixture lives in the package rather than in this script because the
+    simulated Alexa+ front end served at `/` runs the same evidence through the
+    same tools. If the two drifted, the demo video and the trace attached to
+    the submission would disagree about what the engine did.
     """
-    subject, rival = _sig(20.0), _sig(120.0)
-    samples = []
-
-    # rally 1 (frames 0-40) and rally 2 (frames 190-230): both players on court
-    for fi in list(range(0, 41, 2)) + list(range(190, 231, 2)):
-        sx = 300.0 + (fi % 40) * 2.0
-        rx = 900.0 - (fi % 40) * 2.0
-        samples.append((fi, [_box(sx), _box(rx)], [subject, rival], [160.0, 160.0]))
-
-    # rally 3 (frames 380-420): the subject is off court, only the rival plays
-    for fi in range(380, 421, 2):
-        rx = 900.0 - (fi % 40) * 2.0
-        samples.append((fi, [_box(rx)], [rival], [160.0]))
-
-    ranges = [(0.0, 2.0), (6.3, 2.0), (12.6, 2.0)]
-    return samples, ranges, subject, rival
+    f = evidence()
+    return f["samples"], f["ranges"], f["enrolled_sig"], f["rival_sigs"][0]
 
 
 def main() -> int:

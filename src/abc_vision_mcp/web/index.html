@@ -1,0 +1,555 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ABC Vision — a coach that will not guess who you are</title>
+
+<!--
+  A simulated Alexa+ surface in front of a real MCP server.
+
+  The hackathon organisers confirmed on the discussion board that participants
+  cannot get the Alexa+ MCP Toolkit or the simulator, that no device is needed,
+  and that the right shape is "a simulated web frontend ... demo your MCP being
+  called from that". So: the conversation on the left is staged, and every call
+  on the right is real. This page is served from the same origin as /mcp, which
+  is why it can call it with no proxy and no CORS -- what you see in the right
+  pane is this browser talking to the server, not a recording.
+
+  The demo is deliberately one where the system fails to answer. That is the
+  product.
+-->
+
+<style>
+  :root {
+    --bg: #0b0f14;
+    --panel: #121820;
+    --panel-2: #0e141b;
+    --line: #1f2a36;
+    --text: #e8eef5;
+    --muted: #8b9cb0;
+    --accent: #00caff;
+    --accent-dim: #0a3c4d;
+    --warn: #ffb454;
+    --good: #5ad19a;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  }
+
+  header {
+    padding: 18px 24px 14px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  header h1 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: .2px; }
+  header .sub { color: var(--muted); font-size: 13px; }
+  header .endpoint {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  header .endpoint b { color: var(--accent); font-weight: 600; }
+
+  main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0;
+    height: calc(100vh - 62px);
+  }
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; height: auto; }
+    .pane { height: 70vh; }
+  }
+
+  .pane { overflow-y: auto; padding: 22px 24px 60px; }
+  .pane + .pane { border-left: 1px solid var(--line); background: var(--panel-2); }
+
+  .pane h2 {
+    margin: 0 0 4px;
+    font-size: 12px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .pane .lede { margin: 0 0 20px; color: var(--muted); font-size: 13px; }
+
+  /* ---------- conversation ---------- */
+
+  .turn { margin: 0 0 18px; display: flex; gap: 12px; align-items: flex-start; }
+  .turn .who {
+    flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%;
+    display: grid; place-items: center; font-size: 12px; font-weight: 700;
+  }
+  .turn.user .who { background: #24313f; color: var(--muted); }
+  .turn.alexa .who {
+    background: radial-gradient(circle at 50% 50%, var(--accent) 0 38%, transparent 40%);
+    box-shadow: 0 0 0 2px var(--accent-dim) inset;
+    color: transparent;
+  }
+  .turn .bubble { padding-top: 4px; }
+  .turn.user .bubble { color: var(--muted); }
+  .turn .bubble p { margin: 0 0 8px; }
+  .turn .bubble p:last-child { margin-bottom: 0; }
+
+  .thinking { color: var(--muted); font-style: italic; }
+  .thinking .dots::after {
+    content: ""; animation: dots 1.2s steps(4, end) infinite;
+  }
+  @keyframes dots { 0%{content:""} 25%{content:"."} 50%{content:".."} 75%{content:"..."} }
+
+  .card {
+    margin: 10px 0 0;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--panel);
+    padding: 14px 16px;
+  }
+  .card h3 {
+    margin: 0 0 10px; font-size: 12px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--muted); font-weight: 600;
+  }
+  .card .row {
+    display: flex; justify-content: space-between; gap: 12px;
+    padding: 5px 0; border-top: 1px solid var(--line); font-size: 14px;
+  }
+  .card .row:first-of-type { border-top: 0; }
+  .card .row .v { font-family: var(--mono); color: var(--text); }
+  .card .row .v.warn { color: var(--warn); }
+  .card .row .v.good { color: var(--good); }
+
+  .bars { margin-top: 6px; }
+  .bar { display: grid; grid-template-columns: 74px 1fr 52px; gap: 10px;
+         align-items: center; padding: 3px 0; font-size: 13px; }
+  .bar .name { font-family: var(--mono); color: var(--muted); }
+  .bar .track { height: 7px; background: #1b2531; border-radius: 4px; overflow: hidden; }
+  .bar .fill { height: 100%; background: var(--accent); border-radius: 4px; }
+  .bar .num { font-family: var(--mono); color: var(--muted); text-align: right; }
+  .card .foot { margin: 10px 0 0; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+  .card .foot b { color: var(--text); }
+
+  .choices { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .choices button {
+    background: transparent; color: var(--accent);
+    border: 1px solid var(--accent-dim); border-radius: 999px;
+    padding: 7px 15px; font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .choices button:hover { background: var(--accent-dim); }
+
+  /* ---------- call log ---------- */
+
+  .call {
+    border: 1px solid var(--line); border-radius: 8px;
+    margin: 0 0 10px; overflow: hidden; background: var(--panel);
+  }
+  .call > summary {
+    cursor: pointer; padding: 9px 12px; list-style: none;
+    display: flex; gap: 10px; align-items: center;
+    font-family: var(--mono); font-size: 12.5px;
+  }
+  .call > summary::-webkit-details-marker { display: none; }
+  .call .method { color: var(--accent); }
+  .call .name { color: var(--text); }
+  .call .ms { margin-left: auto; color: var(--muted); font-size: 11.5px; }
+  .call .gist {
+    padding: 0 12px 10px; font-family: var(--mono);
+    font-size: 12px; color: var(--muted);
+  }
+  .call .gist b { color: var(--text); font-weight: 600; }
+  .call .gist .warn { color: var(--warn); }
+  .call pre {
+    margin: 0; padding: 12px; background: #080c11;
+    border-top: 1px solid var(--line);
+    font-size: 11.5px; line-height: 1.5; overflow-x: auto; color: #b9c8d8;
+  }
+
+  .note {
+    margin-top: 26px; padding: 14px 16px; border: 1px dashed var(--line);
+    border-radius: 10px; color: var(--muted); font-size: 13px;
+  }
+  .note b { color: var(--text); }
+  .note a { color: var(--accent); }
+
+  .replay {
+    margin-top: 18px; background: transparent; color: var(--muted);
+    border: 1px solid var(--line); border-radius: 8px;
+    padding: 8px 14px; font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .replay:hover { color: var(--text); border-color: var(--muted); }
+  .replay[disabled] { opacity: .4; cursor: default; }
+</style>
+
+<header>
+  <h1>ABC Vision</h1>
+  <span class="sub">a badminton coach that declines to guess who you are</span>
+  <span class="endpoint">live MCP endpoint <b id="ep">/mcp</b></span>
+</header>
+
+<main>
+  <section class="pane">
+    <h2>Simulated Alexa+ experience</h2>
+    <p class="lede">
+      The conversation is staged. Everything it is built from is not — each line
+      below waits on a real call to the MCP server, shown on the right.
+    </p>
+    <div id="convo"></div>
+    <button class="replay" id="replay" disabled>Run it again</button>
+  </section>
+
+  <section class="pane">
+    <h2>What is actually happening</h2>
+    <p class="lede">
+      This browser, talking to the MCP server over Streamable HTTP. Same origin
+      as this page, no proxy in between. Open any call to see the JSON-RPC.
+    </p>
+    <div id="calls"></div>
+    <div class="note">
+      <b>Why the demo ends without an answer.</b> Three rallies; the player
+      rotates off court for the third. No assignment of detections to people can
+      cover a rally the player was not in, so the loop exhausts its anchors and
+      asks rather than publishes. In production this is
+      <b id="declineRate">the second most common outcome</b> — the figure is
+      fetched live from <code>production_outcomes</code>, over 1,117 real jobs.
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  const MCP = new URL("mcp", location.href.replace(/[^/]*$/, "")).pathname;
+  document.getElementById("ep").textContent = location.origin + MCP;
+
+  const convo = document.getElementById("convo");
+  const calls = document.getElementById("calls");
+  const replayBtn = document.getElementById("replay");
+
+  // ---------------------------------------------------------------- transport
+
+  let sessionId = null;
+  let protocolVersion = null;
+  let rpcId = 0;
+
+  /** Streamable HTTP answers either JSON or an SSE stream; accept both. */
+  function parseBody(contentType, text) {
+    if (!text) return null;
+    if ((contentType || "").includes("text/event-stream")) {
+      for (const line of text.split(/\r?\n/)) {
+        if (line.startsWith("data:")) {
+          try { return JSON.parse(line.slice(5).trim()); } catch (_) { /* keep looking */ }
+        }
+      }
+      return null;
+    }
+    try { return JSON.parse(text); } catch (_) { return null; }
+  }
+
+  async function rpc(method, params, opts) {
+    const notification = (opts || {}).notification === true;
+    const headers = {
+      "Content-Type": "application/json",
+      "Accept": "application/json, text/event-stream",
+    };
+    if (sessionId) headers["Mcp-Session-Id"] = sessionId;
+    if (protocolVersion) headers["MCP-Protocol-Version"] = protocolVersion;
+
+    const payload = { jsonrpc: "2.0", method };
+    if (!notification) payload.id = ++rpcId;
+    if (params !== undefined) payload.params = params;
+
+    const started = performance.now();
+    const res = await fetch(MCP, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+    });
+    const sid = res.headers.get("Mcp-Session-Id");
+    if (sid) sessionId = sid;
+
+    const text = await res.text();
+    const body = parseBody(res.headers.get("Content-Type"), text);
+    const ms = Math.round(performance.now() - started);
+
+    if (body && body.error) {
+      const e = new Error(body.error.message || "RPC error");
+      e.rpc = body.error;
+      throw e;
+    }
+    return { result: body ? body.result : null, ms, status: res.status, payload };
+  }
+
+  async function callTool(name, args) {
+    const out = await rpc("tools/call", { name, arguments: args || {} });
+    const r = out.result || {};
+    // Tool errors are results, not transport failures. The whole point of this
+    // server is that a refusal comes back as data, so surface it as data.
+    const structured = r.structuredContent || r.structured_content || null;
+    let value = structured;
+    if (!value && Array.isArray(r.content)) {
+      const t = r.content.find(c => c.type === "text");
+      if (t) { try { value = JSON.parse(t.text); } catch (_) { value = { text: t.text }; } }
+    }
+    return { value: value || {}, isError: !!(r.isError || r.is_error), ms: out.ms, payload: out.payload, raw: r };
+  }
+
+  // ------------------------------------------------------------------- render
+
+  function logCall(method, name, gistHtml, ms, request, response) {
+    const el = document.createElement("details");
+    el.className = "call";
+    el.innerHTML =
+      '<summary><span class="method">' + method + '</span>' +
+      (name ? '<span class="name">' + name + "</span>" : "") +
+      '<span class="ms">' + ms + ' ms</span></summary>' +
+      (gistHtml ? '<div class="gist">' + gistHtml + "</div>" : "") +
+      "<pre></pre>";
+    el.querySelector("pre").textContent =
+      "→ " + JSON.stringify(request, null, 2) +
+      "\n\n← " + JSON.stringify(response, null, 2);
+    calls.appendChild(el);
+    el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    return el;
+  }
+
+  function turn(who, html) {
+    const el = document.createElement("div");
+    el.className = "turn " + who;
+    el.innerHTML = '<div class="who">' + (who === "user" ? "You" : "") + "</div>" +
+                   '<div class="bubble">' + html + "</div>";
+    convo.appendChild(el);
+    el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    return el;
+  }
+
+  function thinking(text) {
+    return turn("alexa", '<p class="thinking">' + text + '<span class="dots"></span></p>');
+  }
+
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const esc = s => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
+  // --------------------------------------------------------------------- flow
+
+  async function run() {
+    convo.innerHTML = "";
+    calls.innerHTML = "";
+    sessionId = null;
+    protocolVersion = null;
+    rpcId = 0;
+    replayBtn.disabled = true;
+
+    try {
+      // --- handshake -------------------------------------------------------
+      const init = await rpc("initialize", {
+        protocolVersion: "2025-11-25",
+        capabilities: {},
+        clientInfo: { name: "abc-vision-alexa-sim", version: "1.0.0" },
+      });
+      const si = (init.result && (init.result.serverInfo || init.result.server_info)) || {};
+      protocolVersion = init.result && init.result.protocolVersion;
+      logCall("initialize", "",
+        "server <b>" + esc(si.name || "?") + " " + esc(si.version || "") + "</b> · " +
+        "protocol <b>" + esc(protocolVersion || "?") + "</b>",
+        init.ms, init.payload, init.result);
+
+      await rpc("notifications/initialized", undefined, { notification: true });
+
+      const fixture = await fetch("demo/fixture").then(r => r.json());
+
+      turn("user", "<p>Alexa, how did I play tonight?</p>");
+      await sleep(600);
+      const t1 = thinking("Looking at tonight's footage");
+
+      // --- open the session ------------------------------------------------
+      const opened = await callTool("open_identity_session", {
+        samples: fixture.samples,
+        fps: fixture.fps,
+        enrolled_sig: fixture.enrolled_sig,
+        enrolled_height: fixture.enrolled_height,
+        rival_sigs: fixture.rival_sigs,
+        ranges: fixture.ranges,
+      });
+      logCall("tools/call", "open_identity_session",
+        "<b>" + fixture.samples.length + "</b> sampled frames · " +
+        "<b>" + fixture.ranges.length + "</b> rallies · " +
+        "<b>" + fixture.fps + "</b> fps",
+        opened.ms, { name: "open_identity_session", arguments: "…fixture…" }, opened.value);
+
+      const sessionKey = opened.value.session_id;
+      if (!sessionKey) throw new Error("no session_id: " + JSON.stringify(opened.value));
+
+      t1.remove();
+      turn("alexa", "<p>I have three rallies from tonight and more than one player on court. " +
+                    "Let me work out which one is you.</p>");
+      await sleep(500);
+
+      // --- the loop --------------------------------------------------------
+      const target = fixture.coverage_target;
+      const avoid = [];
+      const attempts = [];
+      let best = null;
+
+      for (let i = 0; i < fixture.max_attempts; i++) {
+        const t = thinking(i === 0 ? "Matching you across the rallies"
+                                   : "That was not enough — trying a different starting point");
+
+        const proposed = await callTool("propose_identity", {
+          session_id: sessionKey,
+          avoid_anchors: avoid.slice(),
+        });
+        const p = proposed.value;
+
+        if (!p.plan_id || p.outcome === "no_plan") {
+          logCall("tools/call", "propose_identity",
+            '<span class="warn">no confident anchor left</span> — ' +
+            "<b>" + avoid.length + "</b> already excluded",
+            proposed.ms, { name: "propose_identity", arguments: { session_id: sessionKey, avoid_anchors: avoid } }, p);
+          t.remove();
+          break;
+        }
+
+        logCall("tools/call", "propose_identity",
+          "plan <b>" + esc(p.plan_id) + "</b> · anchor <b>" +
+          esc(JSON.stringify(p.anchor_key)) + "</b> · claims <b>" +
+          esc(p.claimed_frames) + "</b> frames",
+          proposed.ms, { name: "propose_identity", arguments: { session_id: sessionKey, avoid_anchors: avoid } }, p);
+
+        const scored = await callTool("score_identity_plan", {
+          session_id: sessionKey, plan_id: p.plan_id,
+        });
+        const covered = scored.value.rallies_covered;
+        const enough = covered >= target;
+
+        logCall("tools/call", "score_identity_plan",
+          "covers <b" + (enough ? "" : ' class="warn"') + ">" + covered + " of " + target +
+          "</b> rallies" + (enough ? "" : " — <span class='warn'>below the gate</span>"),
+          scored.ms, { name: "score_identity_plan", arguments: { session_id: sessionKey, plan_id: p.plan_id } }, scored.value);
+
+        attempts.push({ plan_id: p.plan_id, covered: covered });
+        if (!best || covered > best.covered) best = { plan_id: p.plan_id, covered: covered };
+
+        t.remove();
+
+        if (enough) { best = { plan_id: p.plan_id, covered: covered, accepted: true }; break; }
+        if (p.anchor_key == null) break;
+        avoid.push(p.anchor_key);
+        await sleep(420);
+      }
+
+      // --- the decision ----------------------------------------------------
+      const compared = await callTool("compare_identity_plans", { session_id: sessionKey });
+      logCall("tools/call", "compare_identity_plans",
+        "<b>" + attempts.length + "</b> plans tried · best covered <b class=\"warn\">" +
+        (best ? best.covered : 0) + " of " + target + "</b>",
+        compared.ms, { name: "compare_identity_plans", arguments: { session_id: sessionKey } }, compared.value);
+
+      if (best && best.accepted) {
+        turn("alexa", "<p>Found you. Here is tonight.</p>");
+        replayBtn.disabled = false;
+        return;
+      }
+
+      // --- what separates the two people, so the question is answerable ----
+      const totalRegions = Object.keys(fixture.enrolled_sig || {}).length || 30;
+      const diff = await callTool("explain_identity_difference", {
+        target_sig: fixture.enrolled_sig,
+        other_sigs: fixture.rival_sigs,
+        keep: totalRegions,
+      });
+      const d = diff.value;
+      const degraded = d.degraded_to_defaults === true;
+      const evidence = Array.isArray(d.evidence) ? d.evidence : [];
+      const separating = d.regions_used ?? evidence.length;
+      const largest = Number(d.largest_gap) || 1;
+
+      logCall("tools/call", "explain_identity_difference",
+        degraded
+          ? '<span class="warn">degraded_to_defaults — nothing separates them</span>'
+          : "<b>" + separating + "</b> of " + totalRegions + " patches separate them · " +
+            "largest gap <b>" + esc(d.largest_gap) + "</b> · floor <b>" + esc(d.floor) + "</b>",
+        diff.ms, { name: "explain_identity_difference", arguments: { keep: totalRegions } }, d);
+
+      // The engine answers per patch. A horizontal band of the body is the unit
+      // a person can actually check against a memory of what they wore, so
+      // collapse to bands -- and keep the empty ones on screen, because the
+      // bands that say nothing are half of what this is telling you.
+      const byBand = {};
+      for (const e of evidence) {
+        const band = String(e.where || "").slice(0, 3);
+        byBand[band] = Math.max(byBand[band] || 0, Number(e.gap) || 0);
+      }
+      const bandsWith = Object.values(byBand).filter(g => g > 0).length;
+      const bars = Array.from({ length: 10 }, (_, i) => {
+        const band = "r0" + i;
+        const g = byBand[band] || 0;
+        return '<div class="bar"><span class="name">' + band + "</span>" +
+               '<span class="track"><span class="fill" style="width:' +
+               Math.round(g / largest * 100) + '%"></span></span>' +
+               '<span class="num">' + (g ? g.toFixed(2) : "—") + "</span></div>";
+      }).join("");
+
+      turn("alexa",
+        "<p>I can't tell you how you played tonight, and I'd rather say so than guess.</p>" +
+        "<p>The best I could do follows you through <b>" + (best ? best.covered : 0) +
+        " of your " + target + " rallies</b>. I tried <b>" + attempts.length +
+        "</b> different starting points and none of them reached all three — you look " +
+        "like you were off court for one of them.</p>" +
+        '<div class="card">' +
+          "<h3>What I was going on</h3>" +
+          '<div class="row"><span>Rallies covered</span><span class="v warn">' +
+            (best ? best.covered : 0) + " of " + target + "</span></div>" +
+          '<div class="row"><span>Anchors tried</span><span class="v">' + attempts.length + "</span></div>" +
+          '<div class="row"><span>Level published</span><span class="v warn">withheld</span></div>' +
+          (evidence.length
+            ? "<h3 style=\"margin-top:14px\">Where you two actually differ</h3>" +
+              '<div class="bars">' + bars + "</div>" +
+              '<p class="foot">Top of frame at the top. <b>' + bandsWith + " of 10</b> bands " +
+              "separate you from the other player, across <b>" + separating + "</b> patches. " +
+              "The rest read the same on both of you, so they are no help — which is " +
+              "most of why I am asking instead of deciding.</p>"
+            : "") +
+        "</div>" +
+        '<div class="choices">' +
+          "<button disabled>Point yourself out</button>" +
+          "<button disabled>Use the two rallies anyway</button>" +
+        "</div>");
+
+      // --- how often this really happens -----------------------------------
+      const outcomes = await callTool("production_outcomes", {});
+      const o = outcomes.value;
+      const denom = (o.denominators || {});
+      const short = (o.outcomes || []).find(x => x.outcome === "tracked_seconds_under_45");
+      logCall("tools/call", "production_outcomes",
+        "<b>" + (denom.all_jobs ?? "?") + "</b> jobs · declined for short tracking <b>" +
+        (short ? short.pct_of_reported + "%" : "?") + "</b> of reported",
+        outcomes.ms, { name: "production_outcomes", arguments: {} }, o);
+
+      if (short) {
+        document.getElementById("declineRate").textContent =
+          short.pct_of_reported + "% of jobs that produced a report";
+      }
+    } catch (err) {
+      turn("alexa", '<p class="thinking">The demo could not reach the server: ' +
+                    esc(err && err.message ? err.message : err) + "</p>");
+      console.error(err);
+    } finally {
+      replayBtn.disabled = false;
+    }
+  }
+
+  replayBtn.addEventListener("click", run);
+  run();
+})();
+</script>
