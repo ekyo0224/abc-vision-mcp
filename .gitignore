@@ -1,0 +1,105 @@
+# ─────────────────────────────────────────────────────────────
+# 白名單策略：先全部擋掉，再逐項放行。
+#
+# 為什麼不用黑名單：主體 repo D:\BADMINTON_COACH_APP_V1 就是用黑名單，
+# 結果漏列 data/results、data/full_results、data/scans、data/courts、
+# data/subjects.json，導致 1,931 個 data/ 檔案（含 428 份客人分析結果、
+# 208 個選手身分、真實姓名檔名、data/recruit/admin_key）全部進了版控。
+# 那個 repo 現在永遠不能推上任何遠端。
+#
+# 這個 repo 不會重蹈覆轍。要進版控的東西必須明確寫在下面的放行清單裡。
+# ─────────────────────────────────────────────────────────────
+
+# 1) 全部擋掉
+/*
+!/.gitignore
+
+# 2) 逐項放行 —— 只有這些進版控
+!/README.md
+!/LICENSE
+!/NOTICE.md
+!/pyproject.toml
+!/requirements.txt
+!/Makefile
+
+!/src/
+!/tests/
+!/docs/
+!/infra/
+!/scripts/
+!/data/
+
+# 3) 放行目錄內部再擋一次（防止子目錄夾帶）
+__pycache__/
+*.py[cod]
+*.so
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+build/
+dist/
+
+# 4) 絕對不准進版控 —— 即使被放行目錄包住
+*.env
+.env*
+*.pem
+*.key
+*.p8
+*.p12
+*.keystore
+*secret*
+*credential*
+*token*
+admin_key
+service_account*.json
+google_play_sa.json
+*.mp4
+*.mov
+*.MOV
+*.avi
+*.mkv
+*.jpg
+*.jpeg
+*.png
+*.webp
+# ↑ 影像檔一律擋。需要放圖進文件時，逐張 git add -f 並先確認畫面無人臉。
+
+# 5) 個資與產線資料 —— 這個 repo 不該有任何一筆
+data/results/
+data/full_results/
+data/scans/
+data/courts/
+data/coaching/
+data/jobs/
+data/subjects*.json
+data/uploads*.json
+data/recruit/
+**/meta.json
+**/*_LABEL_SNAPSHOT.json
+
+# 5b) 引擎切片 —— infra/build.sh 在建置時暫存引擎原始碼與模型到這裡。
+# 那是別人的 repo 的程式碼與 Owner 親手標註訓練出來的模型，只在 Owner 自己的
+# AWS 帳號裡組進容器，絕對不進這個 repo。上面第 2 節放行了 /infra/，所以這一條
+# 是必要的 —— 少了它，白名單反而變成外洩管道。
+infra/engine_slice/
+
+# 5c) 決策軌跡輸出。軌跡本身已去識別，但它是執行產物不是原始碼；
+# 要附進送件的那一份請用 git add -f 明確指定。
+traces/
+
+# 6) data/ 底下唯一放行的：已去識別的統計
+!/data/deidentified/
+!/data/deidentified/*.csv
+!/data/deidentified/README.md
+
+# 7) 本機暫存
+scratchpad/
+tmp/
+*.log
+*.bak
+*.tmp
+.DS_Store
+Thumbs.db

@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 720" width="1180" height="720" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <title>ABC Vision — OpenCV 5 and AWS components</title>
+  <desc>Rally detection runs on AWS App Runner over OpenCV 5. Pose, serve segmentation and identity stay local, because they depend on MediaPipe and YOLO rather than OpenCV.</desc>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#5b6470"/>
+    </marker>
+    <marker id="arrowAccent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1f7a4d"/>
+    </marker>
+  </defs>
+
+  <rect width="1180" height="720" fill="#fbfbfa"/>
+
+  <text x="40" y="46" font-size="24" font-weight="600" fill="#15181c">ABC Vision — OpenCV 5 and AWS components</text>
+  <text x="40" y="70" font-size="14" fill="#5b6470">Rally detection runs on AWS. Pose, serve segmentation and identity do not — and the diagram says why.</text>
+
+  <!-- ─────────────── CLIENT ─────────────── -->
+  <rect x="40" y="104" width="230" height="96" rx="8" fill="#ffffff" stroke="#c9cfd6"/>
+  <text x="56" y="130" font-size="13" font-weight="600" fill="#15181c">MCP client</text>
+  <text x="56" y="152" font-size="12" fill="#5b6470">Alexa+ experience, or any</text>
+  <text x="56" y="170" font-size="12" fill="#5b6470">agent that speaks MCP</text>
+  <text x="56" y="190" font-size="11" fill="#8a929c">14 tools · 2026-07-28</text>
+
+  <line x1="270" y1="152" x2="332" y2="152" stroke="#5b6470" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="276" y="144" font-size="11" fill="#5b6470">Streamable HTTP</text>
+
+  <!-- ─────────────── AWS ─────────────── -->
+  <rect x="332" y="92" width="452" height="308" rx="10" fill="#f2f7fb" stroke="#9fc0da" stroke-dasharray="5 4"/>
+  <text x="350" y="116" font-size="13" font-weight="600" fill="#1c4f75">AWS</text>
+  <text x="350" y="134" font-size="11" fill="#54748d">App Runner · no VPC, therefore no NAT Gateway</text>
+
+  <rect x="352" y="150" width="412" height="80" rx="8" fill="#ffffff" stroke="#9fc0da"/>
+  <text x="368" y="176" font-size="13" font-weight="600" fill="#15181c">MCP server (Streamable HTTP)</text>
+  <text x="368" y="197" font-size="12" fill="#5b6470">container runs as non-root · build fails if OpenCV is not 5.x</text>
+  <text x="368" y="216" font-size="11" fill="#8a929c">this URL is the submission's &#8220;working web endpoint&#8221;</text>
+
+  <rect x="352" y="244" width="412" height="136" rx="8" fill="#ffffff" stroke="#1f7a4d" stroke-width="1.6"/>
+  <text x="368" y="270" font-size="13" font-weight="600" fill="#1f7a4d">Rally detection — OpenCV 5</text>
+  <text x="368" y="291" font-size="12" fill="#3d4650">core/scan.py · STRIDE_SEC 0.12 over the whole clip</text>
+  <text x="368" y="311" font-size="12" fill="#3d4650">resize(INTER_AREA) → cvtColor → background stack</text>
+  <text x="368" y="329" font-size="12" fill="#3d4650">→ connectedComponentsWithStats → frozen ranker</text>
+  <text x="368" y="352" font-size="11" fill="#8a929c">imports cv2 + numpy only — no PyTorch, ONNX or MediaPipe.</text>
+  <text x="368" y="369" font-size="11" fill="#8a929c">That is why real video analysis fits in a ~200 MB image.</text>
+
+  <!-- output of scan is a plan -->
+  <line x1="558" y1="400" x2="558" y2="452" stroke="#1f7a4d" stroke-width="1.8" marker-end="url(#arrowAccent)"/>
+  <text x="572" y="424" font-size="12" font-weight="600" fill="#1f7a4d">rally list = a plan</text>
+  <text x="572" y="441" font-size="11" fill="#5b6470">decides where every later stage looks</text>
+
+  <!-- ─────────────── LOCAL ─────────────── -->
+  <rect x="332" y="460" width="452" height="212" rx="10" fill="#faf6f2" stroke="#d8c3ab" stroke-dasharray="5 4"/>
+  <text x="350" y="484" font-size="13" font-weight="600" fill="#7a5a32">Local — stays where the video already is</text>
+
+  <rect x="352" y="498" width="196" height="72" rx="8" fill="#ffffff" stroke="#d8c3ab"/>
+  <text x="366" y="522" font-size="12" font-weight="600" fill="#15181c">Serve segmentation</text>
+  <text x="366" y="542" font-size="11" fill="#5b6470">53.8% of a job, and</text>
+  <text x="366" y="558" font-size="11" fill="#5b6470">93% of that is not OpenCV</text>
+
+  <rect x="568" y="498" width="196" height="72" rx="8" fill="#ffffff" stroke="#d8c3ab"/>
+  <text x="582" y="522" font-size="12" font-weight="600" fill="#15181c">Pose — MediaPipe</text>
+  <text x="582" y="542" font-size="11" fill="#5b6470">70.2% of that stage;</text>
+  <text x="582" y="558" font-size="11" fill="#5b6470">arm64 support unresolved</text>
+
+  <rect x="352" y="584" width="412" height="72" rx="8" fill="#ffffff" stroke="#d8c3ab"/>
+  <text x="366" y="608" font-size="12" font-weight="600" fill="#15181c">Identity lock — the re-planning loop</text>
+  <text x="366" y="628" font-size="11" fill="#5b6470">needs the frozen ranker and the enrolled player's appearance</text>
+  <text x="366" y="645" font-size="11" fill="#5b6470">up to 8 anchors searched; exposed as separate MCP tool calls</text>
+
+  <!-- ─────────────── RIGHT COLUMN ─────────────── -->
+  <rect x="820" y="150" width="320" height="120" rx="8" fill="#ffffff" stroke="#c9cfd6"/>
+  <text x="836" y="176" font-size="13" font-weight="600" fill="#15181c">CloudWatch</text>
+  <text x="836" y="198" font-size="12" fill="#5b6470">structured JSON, one line per stage</text>
+  <text x="836" y="218" font-size="11" fill="#8a929c">stage names match the local engine's own</text>
+  <text x="836" y="234" font-size="11" fill="#8a929c">timings.jsonl — so cloud and local compare</text>
+  <text x="836" y="250" font-size="11" fill="#8a929c">directly rather than approximately</text>
+
+  <line x1="784" y1="190" x2="818" y2="190" stroke="#5b6470" stroke-width="1.4" marker-end="url(#arrow)"/>
+
+  <rect x="820" y="292" width="320" height="108" rx="8" fill="#ffffff" stroke="#c9cfd6"/>
+  <text x="836" y="318" font-size="13" font-weight="600" fill="#15181c">Decision trace</text>
+  <text x="836" y="340" font-size="12" fill="#5b6470">every branch point, with the</text>
+  <text x="836" y="358" font-size="12" fill="#5b6470">alternatives that were not taken</text>
+  <text x="836" y="380" font-size="11" fill="#8a929c">redacted by key name · tested</text>
+
+  <line x1="784" y1="330" x2="818" y2="330" stroke="#5b6470" stroke-width="1.4" marker-end="url(#arrow)"/>
+
+  <rect x="820" y="460" width="320" height="212" rx="8" fill="#ffffff" stroke="#c9cfd6"/>
+  <text x="836" y="486" font-size="13" font-weight="600" fill="#15181c">Not on AWS, and why</text>
+
+  <text x="836" y="514" font-size="12" fill="#3d4650">COOL / Graviton — not pursued.</text>
+  <text x="836" y="532" font-size="11" fill="#5b6470">Reaches 3–6% of runtime, and the</text>
+  <text x="836" y="548" font-size="11" fill="#5b6470">frozen ranker is bit-sensitive to the</text>
+  <text x="836" y="564" font-size="11" fill="#5b6470">resize implementation COOL replaces.</text>
+  <text x="836" y="580" font-size="11" fill="#8a929c">A 2.1/255 pixel shift once flipped rally</text>
+  <text x="836" y="596" font-size="11" fill="#8a929c">verdicts on all three test videos.</text>
+
+  <text x="836" y="624" font-size="12" fill="#3d4650">Customer video and identity records.</text>
+  <text x="836" y="642" font-size="11" fill="#5b6470">Never leave the owner's machine. The</text>
+  <text x="836" y="658" font-size="11" fill="#5b6470">engine is staged into the image at build</text>
+  <text x="836" y="674" font-size="11" fill="#5b6470">time and is never committed.</text>
+
+  <!-- footnote -->
+  <text x="40" y="700" font-size="11" fill="#8a929c">Stage shares measured from data/stats/timings.jsonl (n=1) and core/serve_freeze.py's own instrumentation. Sample sizes are stated in the report's Limitations.</text>
+</svg>

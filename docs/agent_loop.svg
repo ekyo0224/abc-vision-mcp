@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 760" width="1180" height="760" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <title>ABC Vision — perception, decision, action</title>
+  <desc>A measured coverage figure decides whether the next tool call accepts a plan, excludes its anchor and searches again, or hands control to the player.</desc>
+
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#5b6470"/>
+    </marker>
+    <marker id="aRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#9c3d2e"/>
+    </marker>
+    <marker id="aGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1f7a4d"/>
+    </marker>
+  </defs>
+
+  <rect width="1180" height="760" fill="#fbfbfa"/>
+
+  <text x="40" y="46" font-size="24" font-weight="600" fill="#15181c">Perception → decision → action</text>
+  <text x="40" y="70" font-size="14" fill="#5b6470">Each box is one MCP tool call. The loop runs in the message flow, so the search is readable rather than asserted.</text>
+
+  <!-- lane labels -->
+  <text x="40" y="118" font-size="12" font-weight="600" fill="#8a929c" letter-spacing="1">PERCEPTION</text>
+  <text x="430" y="118" font-size="12" font-weight="600" fill="#8a929c" letter-spacing="1">DECISION</text>
+  <text x="830" y="118" font-size="12" font-weight="600" fill="#8a929c" letter-spacing="1">ACTION</text>
+  <line x1="40" y1="128" x2="1140" y2="128" stroke="#e3e6e9"/>
+
+  <!-- PERCEPTION -->
+  <rect x="40" y="150" width="330" height="92" rx="8" fill="#ffffff" stroke="#c9cfd6"/>
+  <text x="56" y="176" font-size="13" font-weight="600" fill="#15181c">explain_identity_difference</text>
+  <text x="56" y="198" font-size="12" fill="#5b6470">which body regions separate these two</text>
+  <text x="56" y="216" font-size="12" fill="#5b6470">people, and by how much</text>
+  <text x="56" y="234" font-size="11" fill="#1f7a4d">measured: largest_gap 0.3865 (floor 0.02)</text>
+
+  <rect x="40" y="290" width="330" height="110" rx="8" fill="#ffffff" stroke="#1f7a4d" stroke-width="1.6"/>
+  <text x="56" y="316" font-size="13" font-weight="600" fill="#1f7a4d">propose_identity  — OpenCV 5</text>
+  <text x="56" y="338" font-size="12" fill="#5b6470">anchor on the tracklet that most looks</text>
+  <text x="56" y="356" font-size="12" fill="#5b6470">like the subject; walk outwards both ways</text>
+  <text x="56" y="378" font-size="11" fill="#1f7a4d">returns: anchor_key, claimed_frames,</text>
+  <text x="56" y="394" font-size="11" fill="#1f7a4d">rallies_covered</text>
+
+  <rect x="40" y="446" width="330" height="80" rx="8" fill="#ffffff" stroke="#c9cfd6"/>
+  <text x="56" y="472" font-size="13" font-weight="600" fill="#15181c">score_identity_plan</text>
+  <text x="56" y="494" font-size="12" fill="#5b6470">rallies covered, by the same test the</text>
+  <text x="56" y="512" font-size="12" fill="#5b6470">shipping coverage gate applies</text>
+
+  <!-- arrows into decision -->
+  <line x1="370" y1="196" x2="428" y2="240" stroke="#5b6470" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="370" y1="345" x2="428" y2="330" stroke="#5b6470" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="370" y1="486" x2="428" y2="420" stroke="#5b6470" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <!-- DECISION -->
+  <rect x="430" y="240" width="340" height="200" rx="8" fill="#fdf8ec" stroke="#d9b45e" stroke-width="1.6"/>
+  <text x="448" y="268" font-size="14" font-weight="600" fill="#7a5a1e">COVERAGE_GATE</text>
+  <text x="448" y="294" font-size="12" fill="#3d4650">rallies_covered &#8805; target ?</text>
+
+  <text x="448" y="324" font-size="12" font-weight="600" fill="#1f7a4d">yes → accept this plan</text>
+  <text x="448" y="348" font-size="12" font-weight="600" fill="#9c3d2e">no  → exclude this anchor, search again</text>
+  <text x="448" y="372" font-size="12" font-weight="600" fill="#7a5a1e">nothing left → ask the player</text>
+
+  <text x="448" y="404" font-size="11" fill="#8a929c">Every branch is recorded with the alternatives</text>
+  <text x="448" y="420" font-size="11" fill="#8a929c">not taken. A decision with no alternative is</text>
+  <text x="448" y="436" font-size="11" fill="#8a929c">counted separately and is not evidence.</text>
+
+  <!-- feedback loop: decision back to perception -->
+  <path d="M 430 400 C 380 430, 330 430, 300 418 L 250 418" fill="none" stroke="#9c3d2e" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#aRed)"/>
+  <text x="252" y="440" font-size="11" font-weight="600" fill="#9c3d2e">avoid_anchors += anchor_key</text>
+  <text x="252" y="456" font-size="11" fill="#9c3d2e">the next call must anchor elsewhere</text>
+
+  <!-- ACTION -->
+  <line x1="770" y1="312" x2="826" y2="240" stroke="#1f7a4d" stroke-width="1.6" marker-end="url(#aGreen)"/>
+  <rect x="830" y="186" width="310" height="86" rx="8" fill="#ffffff" stroke="#1f7a4d" stroke-width="1.6"/>
+  <text x="846" y="212" font-size="13" font-weight="600" fill="#1f7a4d">Publish</text>
+  <text x="846" y="234" font-size="12" fill="#5b6470">movement, rallies, skill band</text>
+  <text x="846" y="254" font-size="11" fill="#8a929c">55.3% of reported jobs reach here</text>
+
+  <line x1="770" y1="390" x2="826" y2="400" stroke="#7a5a1e" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="830" y="330" width="310" height="140" rx="8" fill="#fdf8ec" stroke="#d9b45e" stroke-width="1.6"/>
+  <text x="846" y="356" font-size="13" font-weight="600" fill="#7a5a1e">Ask the player</text>
+  <text x="846" y="378" font-size="12" fill="#5b6470">&#8220;tap yourself on court&#8221;</text>
+  <text x="846" y="400" font-size="11" fill="#8a929c">the rules name a request for human</text>
+  <text x="846" y="416" font-size="11" fill="#8a929c">approval as a qualifying action</text>
+  <text x="846" y="442" font-size="11" font-weight="600" fill="#9c3d2e">measured in production: 110 of these</text>
+  <text x="846" y="458" font-size="11" font-weight="600" fill="#9c3d2e">requests were never answered</text>
+
+  <rect x="830" y="500" width="310" height="120" rx="8" fill="#ffffff" stroke="#c9cfd6"/>
+  <text x="846" y="526" font-size="13" font-weight="600" fill="#15181c">Withhold, and say why</text>
+  <text x="846" y="548" font-size="12" fill="#5b6470">no level published; the reason is</text>
+  <text x="846" y="566" font-size="12" fill="#5b6470">recorded in the user's own words</text>
+  <text x="846" y="590" font-size="11" fill="#8a929c">30.2% of reported jobs · nothing charged</text>
+  <text x="846" y="608" font-size="11" fill="#8a929c">&#8220;tracked only 37 s, threshold is 45 s&#8221;</text>
+
+  <line x1="770" y1="420" x2="826" y2="546" stroke="#5b6470" stroke-width="1.4" marker-end="url(#a)"/>
+
+  <!-- footer principle -->
+  <rect x="40" y="652" width="1100" height="72" rx="8" fill="#ffffff" stroke="#c9cfd6"/>
+  <text x="60" y="680" font-size="13" font-style="italic" fill="#3d4650">&#8220;Frames the chain cannot claim are simply absent, and the caller records a gap:</text>
+  <text x="60" y="702" font-size="13" font-style="italic" font-weight="600" fill="#15181c">on a measurement that decides someone's level, a gap is honest and a guess is not.&#8221;</text>
+  <text x="900" y="702" font-size="11" fill="#8a929c">— core/identity/lock.py, in production</text>
+</svg>

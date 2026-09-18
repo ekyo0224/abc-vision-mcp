@@ -1,0 +1,33 @@
+# ABC Vision MCP -- pinned for reproducibility.
+#
+# The OpenCV AI Competition 2026 submission checklist asks for "pinned
+# dependencies plus clear build, deployment, and test instructions", so every
+# version here is exact, not a floor.
+#
+# OpenCV 5 is a hard competition requirement:
+#   "Every entry must use OpenCV 5 for substantive image or video analysis"
+# The headless build is deliberate -- this runs as a server and must never pull
+# GUI libraries into the container.
+
+# -- MCP -------------------------------------------------------------------
+# 2.x renamed FastMCP to MCPServer; the import path in server.py depends on it.
+# Negotiates handshake protocol 2025-11-25, which is exactly the Alexa+
+# track's "spec 2025-11-25 or later". Do not quote LATEST_PROTOCOL_VERSION
+# (2026-07-28) as the protocol version -- that is the transport revision.
+mcp==2.2.0
+starlette==1.6.0
+uvicorn==0.53.0
+pydantic==2.13.5
+
+# -- Vision engine ---------------------------------------------------------
+# Versions match the production engine exactly. A mismatch here would mean the
+# numbers in the technical report were produced by different code than the
+# code shipped, which is the failure the competition's reproducibility
+# criterion is looking for.
+opencv-python-headless==5.0.0.93
+numpy==2.5.2
+onnxruntime==1.24.4
+mediapipe==1.0.1
+
+# -- Tests -----------------------------------------------------------------
+pytest==9.1.1
