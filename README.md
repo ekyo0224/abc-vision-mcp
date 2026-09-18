@@ -31,6 +31,10 @@ asks instead of publishing.
 for it — call `protocol_info` on that endpoint and it reports the version of
 the process that answered you.
 
+Opening `/mcp` in a browser returns a JSON-RPC error about a missing session
+ID. That is correct: it is a protocol endpoint, not a web page. The page is at
+`/`.
+
 ---
 
 ## Why this exists
