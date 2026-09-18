@@ -18,9 +18,12 @@ Run:
 from __future__ import annotations
 
 import argparse
+import os
+import sys
 from typing import Any
 
 from mcp.server.mcpserver import MCPServer
+from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import LATEST_PROTOCOL_VERSION
 
 from . import identity, jobs, stats
@@ -48,6 +51,12 @@ server = MCPServer(
     version="0.1.0",
     instructions=INSTRUCTIONS,
 )
+
+# Filled in by main() when serving over HTTP, and reported verbatim by
+# protocol_info. A deployment's transport protections are the easiest thing in
+# a submission to assert and never check, so this server states what it is
+# actually running rather than what its documentation says it runs.
+_TRANSPORT_SECURITY: dict[str, Any] = {"serving": "stdio or not yet started"}
 
 
 # --------------------------------------------------------------------------
@@ -313,6 +322,10 @@ def protocol_info() -> dict[str, Any]:
         "mcp_sdk": ver("mcp"),
         "server_name": server.name,
         "server_version": server.version,
+        # Measured, not asserted. The SDK enables DNS rebinding protection only
+        # when bound to loopback, so a container bound to 0.0.0.0 has none
+        # unless it was asked for. See _transport_security().
+        "transport_security": dict(_TRANSPORT_SECURITY),
     }
     try:
         import cv2
@@ -366,6 +379,50 @@ _TRACES: dict[str, DecisionTrace] = {}
 # Entry point
 # --------------------------------------------------------------------------
 
+def _env_list(name: str) -> list[str]:
+    return [x.strip() for x in os.environ.get(name, "").split(",") if x.strip()]
+
+
+def _transport_security(
+    host: str,
+    allowed_hosts: list[str],
+    allowed_origins: list[str],
+) -> TransportSecuritySettings | None:
+    """Decide the DNS-rebinding policy, and say out loud when there is none.
+
+    The SDK turns this protection on by itself -- but only when the bind
+    address is 127.0.0.1, localhost or ::1. Bind to 0.0.0.0, which is what
+    every container does, and it silently switches itself back off. Measured,
+    against this server, same build:
+
+        bound to 127.0.0.1, Host: attacker.example.com  ->  421 rejected
+        bound to 0.0.0.0,   Host: attacker.example.com  ->  200 served
+
+    That is the wrong way round. The protection vanishes at exactly the moment
+    the server stops being reachable only by the developer, and nothing in the
+    log mentions it. A deployment therefore has to ask for it explicitly, which
+    is what this function exists to make possible -- and if it is not asked
+    for, the absence is printed rather than left to be discovered.
+    """
+    if allowed_hosts or allowed_origins:
+        return TransportSecuritySettings(
+            enable_dns_rebinding_protection=True,
+            allowed_hosts=allowed_hosts,
+            allowed_origins=allowed_origins,
+        )
+
+    if host not in ("127.0.0.1", "localhost", "::1"):
+        print(
+            "WARNING: bound to %s with no --allowed-host, so DNS rebinding "
+            "protection is OFF and any Host header is accepted. Pass "
+            "--allowed-host (or MCP_ALLOWED_HOSTS) naming the public address "
+            "this server answers to." % host,
+            file=sys.stderr,
+            flush=True,
+        )
+    return None
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="ABC Vision MCP server")
     parser.add_argument(
@@ -373,28 +430,64 @@ def main() -> None:
         action="store_true",
         help="serve MCP over Streamable HTTP instead of stdio",
     )
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8931)
+    parser.add_argument("--host", default=os.environ.get("MCP_HOST", "127.0.0.1"))
+    parser.add_argument(
+        "--port", type=int, default=int(os.environ.get("MCP_PORT", "8931"))
+    )
     parser.add_argument(
         "--path",
         default="/mcp",
         help="URL path the Streamable HTTP endpoint is served on",
     )
+    parser.add_argument(
+        "--allowed-host",
+        action="append",
+        metavar="HOST[:PORT]",
+        help="Host header value to accept; repeatable. A ':*' suffix accepts "
+             "any port. Defaults to MCP_ALLOWED_HOSTS (comma separated).",
+    )
+    parser.add_argument(
+        "--allowed-origin",
+        action="append",
+        metavar="ORIGIN",
+        help="Origin header value to accept; repeatable. Defaults to "
+             "MCP_ALLOWED_ORIGINS (comma separated).",
+    )
     args = parser.parse_args()
 
-    if args.http:
-        # host and port are keyword arguments to run(), which forwards them to
-        # run_streamable_http_async. They are NOT attributes of server.settings
-        # -- assigning there is silently accepted and has no effect, so the
-        # server would quietly ignore --host and --port.
-        server.run(
-            transport="streamable-http",
-            host=args.host,
-            port=args.port,
-            streamable_http_path=args.path,
-        )
-    else:
+    if not args.http:
         server.run(transport="stdio")
+        return
+
+    hosts = args.allowed_host if args.allowed_host else _env_list("MCP_ALLOWED_HOSTS")
+    origins = (
+        args.allowed_origin if args.allowed_origin else _env_list("MCP_ALLOWED_ORIGINS")
+    )
+    security = _transport_security(args.host, hosts, origins)
+
+    # Recorded so protocol_info can report what is actually enforcing, rather
+    # than what a deployment document claims is enforcing.
+    _TRANSPORT_SECURITY.clear()
+    _TRANSPORT_SECURITY.update(
+        {
+            "bound_to": "%s:%d" % (args.host, args.port),
+            "dns_rebinding_protection": bool(security),
+            "allowed_hosts": list(hosts),
+            "allowed_origins": list(origins),
+        }
+    )
+
+    # host and port are keyword arguments to run(), which forwards them to
+    # run_streamable_http_async. They are NOT attributes of server.settings
+    # -- assigning there is silently accepted and has no effect, so the
+    # server would quietly ignore --host and --port.
+    server.run(
+        transport="streamable-http",
+        host=args.host,
+        port=args.port,
+        streamable_http_path=args.path,
+        transport_security=security,
+    )
 
 
 if __name__ == "__main__":

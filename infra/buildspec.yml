@@ -1,0 +1,54 @@
+# AWS CodeBuild — build the image inside the owner's own account.
+#
+# This exists so the engine slice never has to be anywhere the owner does not
+# control. The source bundle is uploaded to a private S3 bucket in the owner's
+# account, built here, and pushed to a private ECR repository in the same
+# account. The engine is not in the GitHub repository, is not in any public
+# registry, and is not visible to competition reviewers — who see the MCP
+# server source, which is the part the submission is actually about.
+#
+# It also means no Docker daemon is needed on the developer's machine.
+#
+# Every command below is a single-line string. An earlier version used YAML
+# block scalars for readability and CodeBuild rejected the file: a line reading
+# `echo "FATAL: ..."` inside the block was parsed as a mapping key, and the
+# error surfaced as "Expected Commands[4] to be of string type". Shell written
+# inside YAML should avoid colon-space entirely.
+#
+# Expected environment variables (set on the CodeBuild project):
+#   AWS_ACCOUNT_ID, AWS_DEFAULT_REGION, IMAGE_REPO_NAME, IMAGE_TAG
+
+version: 0.2
+
+env:
+  shell: bash
+
+phases:
+  pre_build:
+    commands:
+      - export REPO_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME"
+      - echo "Target $REPO_URI"
+      - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com"
+      # The same refusal the local bundler makes, repeated here because this is
+      # the last point before an image exists. A pushed image cannot be
+      # un-pushed, and the engine checkout it came from holds customer data.
+      - LEAKS=$(find infra/engine_slice -name '*.mp4' -o -name '*.mov' -o -name '*.csv' -o -name '*.log' -o -name '*admin_key*' 2>/dev/null | head -20)
+      - test -z "$LEAKS" || (echo "REFUSING TO BUILD - data files in engine slice" && echo "$LEAKS" && exit 1)
+      - echo "engine slice OK - $(find infra/engine_slice -type f | wc -l) files"
+
+  build:
+    commands:
+      - docker build -f infra/Dockerfile -t "$IMAGE_REPO_NAME:$IMAGE_TAG" .
+      # The Dockerfile already asserts this during build. Repeated against the
+      # finished image because OpenCV 5 is an entry requirement, and a
+      # submission that silently shipped OpenCV 4 would be invalid rather than
+      # merely slower.
+      - docker run --rm "$IMAGE_REPO_NAME:$IMAGE_TAG" python -c "import cv2,sys; v=cv2.__version__; print('OpenCV', v); sys.exit(0 if v.startswith('5.') else 1)"
+      - docker tag "$IMAGE_REPO_NAME:$IMAGE_TAG" "$REPO_URI:$IMAGE_TAG"
+      - docker tag "$IMAGE_REPO_NAME:$IMAGE_TAG" "$REPO_URI:latest"
+
+  post_build:
+    commands:
+      - docker push "$REPO_URI:$IMAGE_TAG"
+      - docker push "$REPO_URI:latest"
+      - echo "pushed $REPO_URI:$IMAGE_TAG"
