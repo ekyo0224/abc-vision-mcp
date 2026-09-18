@@ -238,9 +238,9 @@ def propose_identity(
     description=(
         "How many rallies a proposed plan actually covers, using the same "
         "definition the production coverage gate applies: a rally counts once "
-        "at least four of its sampled frames are claimed. Use this to decide "
-        "whether a plan is good enough or whether to exclude its anchor and "
-        "look again."
+        "enough of its sampled frames are claimed, against the same threshold "
+        "production uses. Use this to decide whether a plan is good enough or "
+        "whether to exclude its anchor and look again."
     ),
 )
 def score_identity_plan(session_id: str, plan_id: str) -> dict[str, Any]:
