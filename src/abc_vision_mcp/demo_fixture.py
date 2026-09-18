@@ -58,7 +58,32 @@ def _box(x: float) -> list[float]:
     return [x, 400.0, x + 60.0, 560.0, 0.9]
 
 
-def evidence() -> dict[str, Any]:
+def _rally(samples: list[list[Any]], frames: range, subject: dict, rival: dict,
+           subject_on_court: bool) -> None:
+    """Append one rally's sampled frames.
+
+    The only difference between the two cases below is what this is called
+    with. Keeping it in one place is the point: if the two fixtures differed
+    anywhere else, a reader could fairly ask whether the outcome turned on
+    something other than the subject being present.
+    """
+    for fi in frames:
+        rx = 900.0 - (fi % 40) * 2.0
+        if subject_on_court:
+            sx = 300.0 + (fi % 40) * 2.0
+            samples.append([fi, [_box(sx), _box(rx)], [subject, rival],
+                            [160.0, 160.0]])
+        else:
+            samples.append([fi, [_box(rx)], [rival], [160.0]])
+
+
+# Rally 1 and rally 2 are separated by more than the engine's link window, so
+# each is a distinct candidate anchor and ruling one out is a real choice.
+RALLIES = (range(0, 41, 2), range(190, 231, 2), range(380, 421, 2))
+RANGES = [[0.0, 2.0], [6.3, 2.0], [12.6, 2.0]]
+
+
+def _fixture(third_rally_has_subject: bool, note: str) -> dict[str, Any]:
     """JSON-serialisable, because the browser is one of the two callers.
 
     Tuples would survive the Python caller and become arrays over the wire, so
@@ -67,32 +92,58 @@ def evidence() -> dict[str, Any]:
     """
     subject, rival = _sig(20.0), _sig(120.0)
     samples: list[list[Any]] = []
-
-    # rally 1 (frames 0-40) and rally 2 (frames 190-230): both players on court.
-    # The blocks are separated by more than the engine's link window, so each is
-    # a distinct candidate anchor and ruling one out is a real choice.
-    for fi in list(range(0, 41, 2)) + list(range(190, 231, 2)):
-        sx = 300.0 + (fi % 40) * 2.0
-        rx = 900.0 - (fi % 40) * 2.0
-        samples.append([fi, [_box(sx), _box(rx)], [subject, rival], [160.0, 160.0]])
-
-    # rally 3 (frames 380-420): the subject is off court, only the rival plays.
-    for fi in range(380, 421, 2):
-        rx = 900.0 - (fi % 40) * 2.0
-        samples.append([fi, [_box(rx)], [rival], [160.0]])
-
+    for i, frames in enumerate(RALLIES):
+        _rally(samples, frames, subject, rival,
+               subject_on_court=(i < 2 or third_rally_has_subject))
     return {
         "samples": samples,
         "fps": FPS,
         "enrolled_sig": subject,
         "enrolled_height": 160.0,
         "rival_sigs": [rival],
-        "ranges": [[0.0, 2.0], [6.3, 2.0], [12.6, 2.0]],
+        "ranges": RANGES,
         "coverage_target": COVERAGE_TARGET,
         "max_attempts": MAX_ATTEMPTS,
-        "note": (
-            "Synthetic input, production tools. Three rallies; the subject "
-            "sits out the third. No assignment can cover a rally the subject "
-            "was not in."
-        ),
+        "note": note,
     }
+
+
+def evidence() -> dict[str, Any]:
+    """The ordinary hard case: the subject sits out the third rally.
+
+    This is the run the submission is built around, because it is the one where
+    a measured result changes the next tool call — propose, score, exclude,
+    propose again, and finally ask a person.
+    """
+    return _fixture(
+        third_rally_has_subject=False,
+        note=("Synthetic input, production tools. Three rallies; the subject "
+              "sits out the third. No assignment can cover a rally the subject "
+              "was not in."),
+    )
+
+
+def evidence_resolved() -> dict[str, Any]:
+    """The ordinary easy case: the subject plays all three rallies.
+
+    Added because the demo previously had only the case above, so a reader who
+    watched it once saw the system decline and never saw it do anything else.
+    That is a fair thing to hold against a coaching product, and it was not
+    what the numbers said: over the production export, jobs that produced a
+    report published a level more often than they withheld one.
+
+    It is deliberately *not* a replacement. This run locks on the first attempt
+    and excludes nothing, so on its own it would demonstrate no loop at all —
+    the branching evidence lives entirely in ``evidence()``. The two belong
+    side by side or not at all.
+    """
+    return _fixture(
+        third_rally_has_subject=True,
+        note=("Synthetic input, production tools. Same two players, same "
+              "signatures, same geometry as the harder case -- the only "
+              "difference is that the subject stays on court for all three "
+              "rallies."),
+    )
+
+
+CASES = {"unresolved": evidence, "resolved": evidence_resolved}

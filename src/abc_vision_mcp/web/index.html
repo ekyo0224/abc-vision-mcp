@@ -188,6 +188,20 @@
   }
   .replay:hover { color: var(--text); border-color: var(--muted); }
   .replay[disabled] { opacity: .4; cursor: default; }
+
+  /* Two runs go down each pane, so they need a visible seam. Without one a
+     reader scrolling the call log cannot tell where the first run ended, and
+     the whole point of showing both is that they are different. */
+  .runhead { margin: 22px 0 12px; padding-top: 14px; border-top: 1px solid #1d2733; }
+  .runhead:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+  .runhead b { display: block; color: #e8eef5; font-size: 14px; letter-spacing: .01em; }
+  .runhead span { display: block; color: #8b9cb0; font-size: 12.5px; margin-top: 3px; }
+  .runhead .tag {
+    display: inline-block; margin-bottom: 6px; padding: 2px 8px; border-radius: 10px;
+    font-size: 11px; letter-spacing: .12em; text-transform: uppercase; font-weight: 600;
+  }
+  .runhead .tag.ok   { background: #0d2e22; color: #35d39a; }
+  .runhead .tag.hold { background: #2e2410; color: #e3b341; }
 </style>
 
 <header>
@@ -215,12 +229,17 @@
     </p>
     <div id="calls"></div>
     <div class="note">
-      <b>Why the demo ends without an answer.</b> Three rallies; the player
-      rotates off court for the third. No assignment of detections to people can
-      cover a rally the player was not in, so the loop exhausts its anchors and
-      asks rather than publishes. In production this is
-      <b id="declineRate">the second most common outcome</b> — the figure is
-      fetched live from <code>production_outcomes</code>, over 1,117 real jobs.
+      <b>Two runs, because one of them on its own was misleading.</b> This page
+      used to show only the second: three rallies with the player off court for
+      the third, where no assignment of detections to people can cover a rally
+      the player was not in, so the loop exhausts its anchors and asks rather
+      than publishes. Shown alone that reads as a system which never answers.
+      It is not — over 1,117 real jobs, those that produced a report published
+      a level more often than they withheld one. Withholding accounts for
+      <b id="declineRate">the minority of them</b>, fetched live from
+      <code>production_outcomes</code> as you load this page. So the ordinary
+      case runs first. Only the second run branches, and the branch is the part
+      worth watching.
     </div>
   </section>
 </main>
@@ -340,15 +359,28 @@
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const esc = s => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 
+  // Both panes get the same seam, so a reader scrolling either one knows which
+  // run they are looking at.
+  function divider(tagClass, tag, title, sub) {
+    for (const pane of [convo, calls]) {
+      const el = document.createElement("div");
+      el.className = "runhead";
+      el.innerHTML = '<span class="tag ' + tagClass + '">' + tag + "</span>" +
+                     "<b>" + title + "</b><span>" + sub + "</span>";
+      pane.appendChild(el);
+    }
+  }
+
   // --------------------------------------------------------------------- flow
 
-  async function run() {
-    convo.innerHTML = "";
-    calls.innerHTML = "";
+  // One case, end to end, with its own handshake and its own MCP session. Two
+  // sessions rather than one shared across both runs: the second run must not
+  // be able to benefit from state the first one left behind, or the comparison
+  // between them would not be worth showing.
+  async function run(caseName) {
     sessionId = null;
     protocolVersion = null;
     rpcId = 0;
-    replayBtn.disabled = true;
 
     try {
       // --- handshake -------------------------------------------------------
@@ -366,7 +398,8 @@
 
       await rpc("notifications/initialized", undefined, { notification: true });
 
-      const fixture = await fetch("demo/fixture").then(r => r.json());
+      const fixture = await fetch("demo/fixture?case=" + encodeURIComponent(caseName))
+        .then(r => r.json());
 
       turn("user", "<p>Alexa, how did I play tonight?</p>");
       await sleep(600);
@@ -456,8 +489,29 @@
         compared.ms, { name: "compare_identity_plans", arguments: { session_id: sessionKey } }, compared.value);
 
       if (best && best.accepted) {
-        turn("alexa", "<p>Found you. Here is tonight.</p>");
-        replayBtn.disabled = false;
+        // Deliberately does not show a level. No tool on this surface returns
+        // one -- the level is computed downstream -- and a number here that no
+        // call produced would be the exact thing this project argues against.
+        turn("alexa",
+          "<p>Found you. You're in all three rallies tonight.</p>" +
+          '<div class="card">' +
+            "<h3>What I was going on</h3>" +
+            '<div class="row"><span>Rallies covered</span><span class="v">' +
+              best.covered + " of " + target + "</span></div>" +
+            '<div class="row"><span>Anchors tried</span><span class="v">' +
+              attempts.length + "</span></div>" +
+            '<div class="row"><span>Anchors excluded</span><span class="v">' +
+              avoid.length + "</span></div>" +
+            '<p class="foot">' +
+              (attempts.length === 1 && avoid.length === 0
+                ? "Nothing had to be excluded and nothing was tried twice, so " +
+                  "<b>this run demonstrates no loop at all</b> — the branching is in the run below. "
+                : "") +
+              "Analysis proceeds from here. The skill level itself is computed " +
+              "downstream and is not exposed on this MCP surface, so it is not " +
+              "shown: a number no call returned has no business on this page." +
+            "</p>" +
+          "</div>");
         return;
       }
 
@@ -530,26 +584,54 @@
       const outcomes = await callTool("production_outcomes", {});
       const o = outcomes.value;
       const denom = (o.denominators || {});
+      // The note below talks about withholding in general, so it must carry the
+      // total -- not the largest single reason. An earlier version of this line
+      // filled it with tracked_seconds_under_45 (30.2%), which is one reason
+      // among six and reads as though it were the whole of it.
+      const head = (o.headline || {});
+      const declinedPct = head.declined_to_publish_pct_of_reported;
       const short = (o.outcomes || []).find(x => x.outcome === "tracked_seconds_under_45");
       logCall("tools/call", "production_outcomes",
-        "<b>" + (denom.all_jobs ?? "?") + "</b> jobs · declined for short tracking <b>" +
-        (short ? short.pct_of_reported + "%" : "?") + "</b> of reported",
+        "<b>" + (denom.all_jobs ?? "?") + "</b> jobs · <b>" +
+        (denom.jobs_that_produced_a_report ?? "?") + "</b> produced a report · withheld <b>" +
+        (declinedPct != null ? declinedPct + "%" : "?") + "</b> of those" +
+        (short ? " · largest single reason <b>" + short.pct_of_reported + "%</b>" : ""),
         outcomes.ms, { name: "production_outcomes", arguments: {} }, o);
 
-      if (short) {
+      if (declinedPct != null) {
         document.getElementById("declineRate").textContent =
-          short.pct_of_reported + "% of jobs that produced a report";
+          declinedPct + "% of the jobs that produced a report";
       }
     } catch (err) {
       turn("alexa", '<p class="thinking">The demo could not reach the server: ' +
                     esc(err && err.message ? err.message : err) + "</p>");
       console.error(err);
+    }
+  }
+
+  // Both runs, in this order. The easy one first because a reader who leaves
+  // after ten seconds should not come away thinking the system only ever
+  // refuses; the hard one second because it is the one that branches, and the
+  // branch is what the submission is actually about.
+  async function runBoth() {
+    convo.innerHTML = "";
+    calls.innerHTML = "";
+    replayBtn.disabled = true;
+    try {
+      divider("ok", "answers", "1 · The player stays on court",
+              "Both players in all three rallies. Identity locks, analysis proceeds.");
+      await run("resolved");
+
+      divider("hold", "declines", "2 · The player sits out a rally",
+              "Same two people, same signatures, same geometry — the only change " +
+              "is that the subject is absent for the third rally.");
+      await run("unresolved");
     } finally {
       replayBtn.disabled = false;
     }
   }
 
-  replayBtn.addEventListener("click", run);
-  run();
+  replayBtn.addEventListener("click", runBoth);
+  runBoth();
 })();
 </script>

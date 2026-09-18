@@ -415,15 +415,30 @@ async def _index(_request: Request) -> Response:
 
 
 @server.custom_route("/demo/fixture", methods=["GET"])
-async def _fixture(_request: Request) -> Response:
+async def _fixture(request: Request) -> Response:
     """The evidence the demo page runs through the real tools.
 
     Synthetic input, production tools. It is served rather than embedded in the
     page so that the browser and scripts/demo_agentic_loop.py send byte-
     identical arguments -- otherwise the demo video and the trace attached to
     the submission could disagree about what the engine did.
+
+    ``?case=resolved`` serves the variant where the subject plays all three
+    rallies. The page runs both, in that order: one shows the system answering,
+    the other shows it declining and is the only one of the two that
+    demonstrates a loop. An unknown case is a client error rather than a silent
+    fallback to the default, because a demo that quietly shows the wrong run is
+    worse than one that fails.
     """
-    return JSONResponse(demo_fixture.evidence())
+    case = request.query_params.get("case", "unresolved")
+    build = demo_fixture.CASES.get(case)
+    if build is None:
+        return JSONResponse(
+            {"error": "unknown case %r; expected one of %s"
+                      % (case, ", ".join(sorted(demo_fixture.CASES)))},
+            status_code=400,
+        )
+    return JSONResponse(build())
 
 
 @server.custom_route("/healthz", methods=["GET"])

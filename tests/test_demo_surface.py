@@ -16,6 +16,7 @@ once during this build:
 """
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -97,3 +98,73 @@ def test_the_page_says_the_conversation_is_staged():
     html = (ROOT / "src" / "abc_vision_mcp" / "web" / "index.html").read_text(
         encoding="utf-8")
     assert "staged" in html.lower()
+
+
+# --------------------------------------------------------------------------
+# The two cases shown side by side
+# --------------------------------------------------------------------------
+
+def test_the_two_cases_differ_only_in_the_third_rally():
+    """The comparison is worthless if anything else changed.
+
+    A reader is being asked to accept that the outcome turned on whether the
+    subject was on court. That only holds if the two fixtures are otherwise
+    byte-identical, so this asserts it rather than trusting the constructor.
+    """
+    hard = demo_fixture.evidence()
+    easy = demo_fixture.evidence_resolved()
+
+    for key in ("fps", "enrolled_sig", "enrolled_height", "rival_sigs",
+                "ranges", "coverage_target", "max_attempts"):
+        assert hard[key] == easy[key], "%s differs between the two cases" % key
+
+    # same number of sampled frames, and identical up to the third rally
+    assert len(hard["samples"]) == len(easy["samples"])
+    third = [i for i, s in enumerate(hard["samples"]) if s[0] >= 380]
+    first_third = third[0]
+    assert hard["samples"][:first_third] == easy["samples"][:first_third]
+
+    # the third rally is where they part: one detection versus two
+    assert all(len(s[1]) == 1 for s in hard["samples"][first_third:])
+    assert all(len(s[1]) == 2 for s in easy["samples"][first_third:])
+
+
+def test_both_cases_are_reachable_by_name():
+    assert set(demo_fixture.CASES) == {"resolved", "unresolved"}
+    assert demo_fixture.CASES["unresolved"]() == demo_fixture.evidence()
+    assert demo_fixture.CASES["resolved"]() == demo_fixture.evidence_resolved()
+
+
+def test_the_page_runs_both_cases():
+    """Regression guard for the reason the second case exists.
+
+    The page shipped for a while showing only the declining run, so a reader
+    who watched it once saw the system refuse and never saw it do anything
+    else. If either case stops being requested, that is back.
+    """
+    html = (ROOT / "src" / "abc_vision_mcp" / "web" / "index.html").read_text(
+        encoding="utf-8")
+    assert 'run("resolved")' in html
+    assert 'run("unresolved")' in html
+
+
+def test_the_page_does_not_put_a_level_on_screen():
+    """No tool on this surface returns one.
+
+    The success run is the tempting place to invent a number, because a coach
+    that says "found you" and stops feels unfinished. It has to stay unfinished
+    until the level comes from a call.
+    """
+    html = (ROOT / "src" / "abc_vision_mcp" / "web" / "index.html").read_text(
+        encoding="utf-8")
+    flat = re.sub(r"\s+", " ", html)
+    assert "computed downstream" in flat, (
+        "the success run no longer explains why it shows no level"
+    )
+    # Word boundaries, not substrings: an earlier version of this test matched
+    # "rating" inside "separating" and failed on correct markup.
+    for invented in (r"your level is", r"\blevel\s+\d", r"\bgrade\s+\d",
+                     r"\brating\s+\d", r"\bLevel:\s*\d"):
+        assert not re.search(invented, flat, re.I), (
+            "a level appears on the page but no tool returns one: %r" % invented
+        )
