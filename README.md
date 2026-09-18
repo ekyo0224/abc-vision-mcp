@@ -151,8 +151,17 @@ be checked rather than believed.
 Tests:
 
 ```bash
-.venv/Scripts/python -m pytest tests/ -q     # 58 passed
+.venv/Scripts/python -m pytest tests/ -q
+# 53 passed, 12 skipped   without an engine checkout
+# 65 passed               with ABC_ENGINE_PATH set
 ```
+
+The twelve skips are the tests that need the analysis engine, which is not in
+this repository and never will be — see *Responsible operation* above. Point
+`ABC_ENGINE_PATH` at a checkout containing `core/identity/lock.py` to run them.
+Nothing else in the suite depends on it, so a reviewer without the engine still
+exercises the MCP surface, the transport security, the redaction and the demo
+fixtures.
 
 Reproduce the decision trace shown on the demo page — no video, no customer
 data, production tools:
