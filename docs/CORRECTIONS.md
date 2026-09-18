@@ -164,6 +164,35 @@ long_uploads_that_yielded_a_level      0
 ```
 
 Two regression tests guard it: one asserts every quantity in the prose appears
-in the payload, the other asserts the four withdrawn phrasings never return.
-The claim appeared in four places — the tool, the Devpost description, the
-technical report, and a test's own docstring — and all four were corrected.
+in the payload, the other asserts the withdrawn phrasings never return.
+
+### Six copies, and the counting was wrong four times
+
+The claim was not in one place. Each time it was declared cleaned up, someone
+found another copy:
+
+| Found | Where |
+|---|---|
+| 1–2 | the tool's `reading`, and the Devpost description |
+| 3 | the technical report |
+| 4 | a test's own docstring — in the file meant to catch this |
+| 5 | two title cards in the submission video, one of them italicised |
+| 6 | the tool's **description** — what `tools/list` returns, so the first thing a reader sees |
+
+The sixth is the one worth recording. It survived a deploy *and* the regression
+test written specifically to prevent it, because that test checked the
+`reading` field and nothing else. A guard scoped to the place the bug was found
+is not a guard against the bug; it is a guard against that transcript. The test
+now walks every surface a reader can reach — all fourteen tool descriptions and
+titles, the server instructions, and every prose field the stats tools return —
+and was verified to flag the old text before it was fixed.
+
+The same review turned up two more of the same species: the README reported the
+decline rate as 30.2%, which is one reason of six rather than the 42.7% total,
+and the module docstring still called 2026-07-28 a protocol version — inside
+the very file that correction #1 above is about.
+
+None of the six was found by tooling. All six were found by people reading a
+claim against the data, and on four occasions the person doing the declaring
+that it was all clean was the same one who had missed the next copy. That
+pattern is more useful to a reader of this file than the sentence was.
