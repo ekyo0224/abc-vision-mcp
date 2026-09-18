@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 720" width="1180" height="720" font-family="Segoe UI, Helvetica, Arial, sans-serif">
   <title>ABC Vision — OpenCV 5 and AWS components</title>
-  <desc>Rally detection runs on AWS App Runner over OpenCV 5. Pose, serve segmentation and identity stay local, because they depend on MediaPipe and YOLO rather than OpenCV.</desc>
+  <desc>Rally detection runs on AWS over OpenCV 5, in a container on EC2 behind CloudFront. Pose, serve segmentation and identity stay local, because they depend on MediaPipe and YOLO rather than OpenCV.</desc>
 
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -21,7 +21,7 @@
   <text x="56" y="130" font-size="13" font-weight="600" fill="#15181c">MCP client</text>
   <text x="56" y="152" font-size="12" fill="#5b6470">Alexa+ experience, or any</text>
   <text x="56" y="170" font-size="12" fill="#5b6470">agent that speaks MCP</text>
-  <text x="56" y="190" font-size="11" fill="#8a929c">14 tools · 2026-07-28</text>
+  <text x="56" y="190" font-size="11" fill="#8a929c">14 tools · protocol 2025-11-25</text>
 
   <line x1="270" y1="152" x2="332" y2="152" stroke="#5b6470" stroke-width="1.6" marker-end="url(#arrow)"/>
   <text x="276" y="144" font-size="11" fill="#5b6470">Streamable HTTP</text>
@@ -29,7 +29,7 @@
   <!-- ─────────────── AWS ─────────────── -->
   <rect x="332" y="92" width="452" height="308" rx="10" fill="#f2f7fb" stroke="#9fc0da" stroke-dasharray="5 4"/>
   <text x="350" y="116" font-size="13" font-weight="600" fill="#1c4f75">AWS</text>
-  <text x="350" y="134" font-size="11" fill="#54748d">App Runner · no VPC, therefore no NAT Gateway</text>
+  <text x="350" y="134" font-size="11" fill="#54748d">EC2 behind CloudFront · no VPC of our own, therefore no NAT Gateway</text>
 
   <rect x="352" y="150" width="412" height="80" rx="8" fill="#ffffff" stroke="#9fc0da"/>
   <text x="368" y="176" font-size="13" font-weight="600" fill="#15181c">MCP server (Streamable HTTP)</text>
@@ -42,7 +42,7 @@
   <text x="368" y="311" font-size="12" fill="#3d4650">resize(INTER_AREA) → cvtColor → background stack</text>
   <text x="368" y="329" font-size="12" fill="#3d4650">→ connectedComponentsWithStats → frozen ranker</text>
   <text x="368" y="352" font-size="11" fill="#8a929c">imports cv2 + numpy only — no PyTorch, ONNX or MediaPipe.</text>
-  <text x="368" y="369" font-size="11" fill="#8a929c">That is why real video analysis fits in a ~200 MB image.</text>
+  <text x="368" y="369" font-size="11" fill="#8a929c">That is why real video analysis fits in a 227 MB image.</text>
 
   <!-- output of scan is a plan -->
   <line x1="558" y1="400" x2="558" y2="452" stroke="#1f7a4d" stroke-width="1.8" marker-end="url(#arrowAccent)"/>
