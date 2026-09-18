@@ -199,3 +199,60 @@ def test_median_is_the_true_median_not_the_upper_middle():
     """
     out = stats.human_approval_dropoff()
     assert out["video_seconds_median"] != 295.0
+
+
+# --------------------------------------------------------------------------
+# Every surface a judge reads, not just the one that was wrong
+# --------------------------------------------------------------------------
+
+WITHDRAWN = (
+    "most often yields a level",
+    "most often succeeds",
+    "not in the vision",
+    "the perception worked",
+    "the vision worked",
+)
+
+
+def test_no_withdrawn_claim_survives_on_any_judge_visible_surface():
+    """The narrow version of this test is why one copy shipped.
+
+    An earlier guard checked only ``human_approval_dropoff``'s ``reading``.
+    The same two sentences were also in the tool's *description*, which is what
+    ``tools/list`` returns and therefore the first thing a reader sees -- and
+    they stayed there through a deploy. Scan every registered description, the
+    server instructions, and every prose field the stats tools return.
+    """
+    import asyncio
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+    from abc_vision_mcp import server as srv
+
+    surfaces = {"instructions": srv.INSTRUCTIONS}
+    for tool in asyncio.run(srv.server.list_tools()):
+        surfaces["tool:%s:description" % tool.name] = tool.description or ""
+        surfaces["tool:%s:title" % tool.name] = getattr(tool, "title", "") or ""
+
+    def walk(obj, path):
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                walk(v, path + "." + k)
+        elif isinstance(obj, list):
+            for i, v in enumerate(obj):
+                walk(v, "%s[%d]" % (path, i))
+        elif isinstance(obj, str) and len(obj) > 40:
+            surfaces[path] = obj
+
+    walk(stats.human_approval_dropoff(), "human_approval_dropoff")
+    walk(stats.outcome_breakdown(), "production_outcomes")
+    walk(stats.decline_reasons(), "decline_reasons")
+
+    offenders = [
+        (where, phrase)
+        for where, text in surfaces.items()
+        for phrase in WITHDRAWN
+        if phrase in text.lower()
+    ]
+    assert not offenders, "withdrawn claims still reachable: %r" % (offenders,)

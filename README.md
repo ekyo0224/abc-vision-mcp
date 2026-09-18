@@ -22,10 +22,16 @@ browser talking to that server over Streamable HTTP, each one openable to its
 raw JSON-RPC. The page is served from the same origin as `/mcp`, which is why
 there is no proxy in between and nothing that could be a recording.
 
-The demo ends without an answer, and that is the product: three rallies, the
-player sits out the third, no assignment of detections to people can cover a
-rally the player was not in. The loop tries every anchor, reaches 2 of 3, and
-asks instead of publishing.
+The page runs the loop twice. First the ordinary case, where the player is on
+court for all three rallies: identity locks on the first attempt, nothing is
+excluded, and analysis proceeds. Then the harder one, where the player sits out
+the third and no assignment of detections to people can cover a rally they were
+not in — the loop tries every anchor, reaches 2 of 3, and asks instead of
+publishing.
+
+Only the second run branches, and the branch is the point. The first run is
+there because the page used to show only the second, which reads as a system
+that never answers.
 
 **Verify the OpenCV version yourself** rather than taking this README's word
 for it — call `protocol_info` on that endpoint and it reports the version of
@@ -42,9 +48,10 @@ ID. That is correct: it is a protocol endpoint, not a web page. The page is at
 ABC (AI Badminton Coach) is a shipping product: an App Store listing, seven
 locales, five jurisdictions' privacy compliance, 527 commits, and 1,117
 production jobs over the twelve days to 2026-09-17. Its defining behaviour is
-that it refuses to answer when it is not sure — across 1,117 real jobs it
-declined to assign a skill level in **30.2%** of the analyses that produced a
-report, and recorded a human-readable reason each time.
+that it refuses to answer when it is not sure — of the 705 jobs that produced a
+report, it declined to assign a skill level in **42.7%** of them, and recorded a
+human-readable reason each time. The largest single reason, too little of the
+player tracked, accounts for 30.2% of those same 705.
 
 That refusal is not a UI message bolted on at the end. It is the outcome of a
 chain of gates, each fed by a measurement from the vision pipeline: was a court

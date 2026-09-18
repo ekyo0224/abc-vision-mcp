@@ -6,9 +6,11 @@ Streamable HTTP, and records at every branch point how a measured visual result
 changed what the system did next.
 
 Transport note: the Alexa+ track requires "a self-hosted MCP server (spec
-2025-11-25 or later, Streamable HTTP)". The installed SDK advertises protocol
-version 2026-07-28, which satisfies it; ``protocol_info`` reports the version
-actually in use rather than the one this comment claims.
+2025-11-25 or later, Streamable HTTP)". ``initialize`` negotiates 2025-11-25,
+which satisfies it. The SDK also exposes a higher number, 2026-07-28, which is
+the transport revision and not the protocol version -- an earlier draft of this
+project quoted it as the latter, see docs/CORRECTIONS.md. ``protocol_info``
+returns both, named, so the distinction cannot be lost again.
 
 Run:
     python -m abc_vision_mcp.server                      # stdio, for local clients
@@ -106,10 +108,10 @@ def decline_reasons(since: str | None = None) -> dict[str, Any]:
         "Jobs where the vision could not identify the player on its own, so "
         "the system asked the player to confirm -- and the player never came "
         "back before the request expired. This is the perception-decision-"
-        "action loop's human-approval branch, measured where it fails. Note "
-        "that half of these uploads are five minutes or longer, i.e. the "
-        "length that most often succeeds: the failure is in the hand-off, not "
-        "in the vision."
+        "action loop's human-approval branch, measured where it fails. These "
+        "jobs produced no report, so the identity work on them was never "
+        "scored: what went wrong after the request was sent is measured here, "
+        "what would have happened if it had been answered is not."
     ),
 )
 def human_approval_dropoff() -> dict[str, Any]:
